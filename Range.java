@@ -75,7 +75,7 @@ public class Range<T extends Comparable<? super T>> {
 
     public boolean contains(T value) {
         if (value == null) {
-            return false;
+            throw new NullPointerException();
         }
 
         boolean leftOk = (elementA == null)
@@ -87,6 +87,245 @@ public class Range<T extends Comparable<? super T>> {
                 : value.compareTo(elementB) < 0);
 
         return leftOk && rightOk;
+    }
+
+    public boolean encloses(Range<T> other) {
+        if (this.isEmpty()) {
+            return false;
+        }
+
+        if (other.isEmpty()) {
+            return true;
+        }
+
+        if (this.equals(other)) {
+            return true;
+        }
+
+        try {
+            return this.contains(other.elementA) && this.contains(other.elementB);
+        } catch (NullPointerException e) {
+            return false;
+        }
+
+    }
+
+    public Range<T> intersection(Range<T> connectedRange) {
+        if (this.isEmpty() || connectedRange.isEmpty()) {
+            return new Range<>(elementA, elementA, false, true);
+        }
+
+        if (elementA == null && elementB == null) {
+            return new Range<>(connectedRange.elementA, connectedRange.elementB,
+                    connectedRange.leftClosed, connectedRange.rightClosed);
+        }
+        if (connectedRange.elementA == null && connectedRange.elementB == null) {
+            return new Range<>(elementA, elementB, leftClosed, rightClosed);
+        }
+
+        T newA = null, newB = null;
+        boolean newLeftClosed = false, newRightClosed = false;
+        boolean leftIsSet = false, rightIsSet = false;
+
+        if (elementA == null) {
+            newA = connectedRange.elementA;
+            newLeftClosed = connectedRange.leftClosed;
+            leftIsSet = true;
+        } else if (elementB == null) {
+            newB = connectedRange.elementB;
+            newRightClosed = connectedRange.rightClosed;
+            rightIsSet = true;
+        }
+
+        if (connectedRange.elementA == null) {
+            newA = elementA;
+            newLeftClosed = leftClosed;
+            leftIsSet = true;
+        } else if (connectedRange.elementB == null) {
+            newB = elementB;
+            newRightClosed = rightClosed;
+            rightIsSet = true;
+        }
+
+        // no -INF or INF
+        if (!leftIsSet && !rightIsSet) {
+            // compare A's, B's
+            if (elementA.compareTo(connectedRange.elementA) > 0) {
+                newA = elementA;
+                newLeftClosed = leftClosed;
+            } else {
+                newA = connectedRange.elementA;
+                newLeftClosed = connectedRange.leftClosed;
+            }
+
+            if (elementB.compareTo(connectedRange.elementB) < 0) {
+                newB = elementB;
+                newRightClosed = rightClosed;
+            } else {
+                newB = connectedRange.elementB;
+                newRightClosed = connectedRange.rightClosed;
+            }
+
+        } else if (!leftIsSet) {
+            if (elementA.compareTo(connectedRange.elementA) > 0) {
+                newA = elementA;
+                newLeftClosed = leftClosed;
+            } else {
+                newA = connectedRange.elementA;
+                newLeftClosed = connectedRange.leftClosed;
+            }
+        } else if (!rightIsSet) {
+            if (elementB.compareTo(connectedRange.elementB) < 0) {
+                newB = elementB;
+                newRightClosed = rightClosed;
+            } else {
+                newB = connectedRange.elementB;
+                newRightClosed = connectedRange.rightClosed;
+            }
+        }
+
+        boolean empty;
+        if (newA != null && newB != null) {
+            empty = newA.compareTo(newB) > 0;
+        } else {
+            empty = false;
+        }
+
+        if (empty) {
+            return new Range<>(newA, newA, false, true);
+        }
+
+        return new Range<>(newA, newB, newLeftClosed, newRightClosed);
+    }
+
+    public <U extends T> Range<T> span(Range<U> connectedRange) {
+        if (connectedRange == null) {
+            throw new NullPointerException();
+        }
+
+        if (this.isEmpty()) {
+            return new Range<>(connectedRange.elementA, connectedRange.elementB,
+                    connectedRange.leftClosed, connectedRange.rightClosed);
+        }
+
+        if (connectedRange.isEmpty()) {
+            return new Range<>(elementA, elementB, leftClosed, rightClosed);
+        }
+
+        if (elementA == null && elementB == null) {
+            return all();
+        }
+        if (connectedRange.elementA == null && connectedRange.elementB == null) {
+            return all();
+        }
+
+        T newA = null, newB = null;
+        boolean newLeftClosed = false, newRightClosed = false;
+        boolean leftIsSet = false, rightIsSet = false;
+
+        if (elementA == null) {
+            newLeftClosed = leftClosed;
+            leftIsSet = true;
+        } else if (elementB == null) {
+            newRightClosed = rightClosed;
+            rightIsSet = true;
+        }
+
+        if (connectedRange.elementA == null) {
+            newLeftClosed = connectedRange.leftClosed;
+            leftIsSet = true;
+        } else if (connectedRange.elementB == null) {
+            newRightClosed = connectedRange.rightClosed;
+            rightIsSet = true;
+        }
+
+        // no -INF or INF
+        if (!leftIsSet && !rightIsSet) {
+            // compare A's, B's
+            if (elementA.compareTo(connectedRange.elementA) <= 0) {
+                newA = elementA;
+                if (elementA.compareTo(connectedRange.elementA) == 0) {
+                    newLeftClosed = leftClosed || connectedRange.leftClosed;
+                } else {
+                    newLeftClosed = leftClosed;
+                }
+
+            } else {
+                newA = connectedRange.elementA;
+                newLeftClosed = connectedRange.leftClosed;
+            }
+
+            if (elementB.compareTo(connectedRange.elementB) >= 0) {
+                newB = elementB;
+                if (elementB.compareTo(connectedRange.elementB) == 0) {
+                    newRightClosed = rightClosed || connectedRange.rightClosed;
+                } else {
+                    newRightClosed = rightClosed;
+                }
+
+            } else {
+                newB = connectedRange.elementB;
+                newRightClosed = connectedRange.rightClosed;
+            }
+
+        } else if (!leftIsSet) {
+            if (elementA.compareTo(connectedRange.elementA) <= 0) {
+                newA = elementA;
+                if (elementA.compareTo(connectedRange.elementA) == 0) {
+                    newLeftClosed = leftClosed || connectedRange.leftClosed;
+                } else {
+                    newLeftClosed = leftClosed;
+                }
+            } else {
+                newA = connectedRange.elementA;
+                newLeftClosed = connectedRange.leftClosed;
+            }
+        } else if (!rightIsSet) {
+            if (elementB.compareTo(connectedRange.elementB) >= 0) {
+                newB = elementB;
+                if (elementB.compareTo(connectedRange.elementB) == 0) {
+                    newRightClosed = rightClosed || connectedRange.rightClosed;
+                } else {
+                    newRightClosed = rightClosed;
+                }
+            } else {
+                newB = connectedRange.elementB;
+                newRightClosed = connectedRange.rightClosed;
+            }
+        }
+
+        return new Range<>(newA, newB, newLeftClosed, newRightClosed);
+    }
+
+    public boolean isEmpty() {
+        if (elementA == null || elementB == null || (leftClosed && rightClosed)) {
+            return false;
+        }
+
+        return elementA.compareTo(elementB) == 0;
+    }
+
+    private boolean equals(Range<T> other) {
+        boolean leftEqual = Objects.equals(elementA, other.elementA);
+        boolean rightEqual = Objects.equals(elementB, other.elementB);
+        //boolean leftClosedEqual = leftClosed == other.leftClosed;
+        //boolean rightClosedEqual = rightClosed == other.rightClosed;
+        return leftEqual && rightEqual; //&& leftClosedEqual && rightClosedEqual;
+    }
+
+    @Override
+    public String toString() {
+        if (isEmpty()) {
+            return "EMPTY";
+        }
+
+        String left = leftClosed ? "[" : "(";
+        String right = rightClosed ? "]" : ")";
+
+        String first = elementA == null ? "-INF" : elementA.toString();
+        String last = elementB == null ? "INF" : elementB.toString();
+
+        return String.format("%s%s, %s%s", left, first, last, right);
     }
 
 }
